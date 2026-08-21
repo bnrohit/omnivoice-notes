@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="Cross-device local-first voice recording, timestamped notes, transcription and AI summaries." />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>OmniVoice Notes</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">OmniVoice Notes</div>
+      <div class="subbrand">Record. Note. Transcribe. Summarize.</div>
+    </div>
+    <div class="status-row">
+      <span class="pill">Local-first</span>
+      <span id="platformPill" class="pill secondary">Browser</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card recorder-card">
+      <div class="section-heading">
+        <div>
+          <h1>New recording</h1>
+          <p>Microphone capture works across modern iOS, Android, Windows, macOS and Linux browsers when microphone permission is granted.</p>
+        </div>
+        <div id="recordingBadge" class="recording-badge hidden"><span class="dot"></span> Recording</div>
+      </div>
+
+      <div class="grid two">
+        <label>
+          <span>Title</span>
+          <input id="titleInput" type="text" maxlength="120" placeholder="Meeting, idea, interview…" />
+        </label>
+        <label>
+          <span>Capture source</span>
+          <select id="captureMode">
+            <option value="mic">Microphone</option>
+            <option id="systemOption" value="mic-system">Microphone + tab/system audio</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="consent">
+        <input id="consentInput" type="checkbox" />
+        <span>I understand I must have permission to record other people and follow applicable recording laws/policies.</span>
+      </label>
+
+      <div class="timer-wrap">
+        <div id="timer" class="timer">00:00</div>
+        <div id="recorderStatus" class="muted">Ready</div>
+      </div>
+
+      <div class="button-row primary-actions">
+        <button id="startBtn" class="button primary">Start recording</button>
+        <button id="pauseBtn" class="button" disabled>Pause</button>
+        <button id="stopBtn" class="button danger" disabled>Stop & save</button>
+      </div>
+
+      <div id="iosWarning" class="notice warning hidden">
+        iPhone/iPad browsers can suspend microphone recording when Safari/PWA is backgrounded or the screen locks. Keep this app in the foreground for reliable long recordings.
+      </div>
+      <div id="systemWarning" class="notice hidden"></div>
+
+      <hr />
+
+      <div class="notes-panel">
+        <div class="section-heading compact">
+          <div>
+            <h2>Timestamped notes</h2>
+            <p>Add a note while recording and it is saved with the exact session time.</p>
+          </div>
+        </div>
+        <div class="note-entry">
+          <input id="noteInput" type="text" maxlength="500" placeholder="Decision, action item, important quote…" disabled />
+          <button id="addNoteBtn" class="button" disabled>Add note</button>
+        </div>
+        <div id="activeNotes" class="notes-list empty">No notes yet.</div>
+      </div>
+
+      <hr />
+
+      <div class="import-row">
+        <div>
+          <strong>Already have an audio file?</strong>
+          <div class="muted small">Import it into the local session library, then summarize it.</div>
+        </div>
+        <label class="button file-button">
+          Import audio
+          <input id="fileInput" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.mp4" hidden />
+        </label>
+      </div>
+    </section>
+
+    <section class="card privacy-card">
+      <h2>Privacy & compatibility</h2>
+      <ul>
+        <li>Recordings are saved in this browser's IndexedDB by default.</li>
+        <li>Audio is sent to the configured server only when you tap <strong>Summarize</strong>.</li>
+        <li>No API key is stored in browser code.</li>
+        <li>The app never auto-starts recording or tries to hide the recording state.</li>
+        <li>Desktop system/tab audio depends on browser support and the source you select. Mobile browsers generally cannot capture phone calls or audio from other apps.</li>
+      </ul>
+      <button id="persistBtn" class="button small-button">Request persistent local storage</button>
+      <div id="persistStatus" class="muted small"></div>
+    </section>
+
+    <section class="card sessions-card">
+      <div class="section-heading">
+        <div>
+          <h2>Saved sessions</h2>
+          <p>Your local recording library on this device/browser.</p>
+        </div>
+        <button id="refreshBtn" class="button small-button">Refresh</button>
+      </div>
+      <div id="sessions" class="sessions-list"></div>
+    </section>
+  </main>
+
+  <template id="sessionTemplate">
+    <article class="session">
+      <div class="session-head">
+        <div>
+          <h3 class="session-title"></h3>
+          <div class="session-meta muted small"></div>
+        </div>
+        <div class="session-tags"></div>
+      </div>
+      <audio class="session-audio" controls preload="metadata"></audio>
+      <div class="button-row session-actions">
+        <button class="button summarize-btn">Summarize</button>
+        <button class="button export-btn">Export text</button>
+        <button class="button danger-outline delete-btn">Delete</button>
+      </div>
+      <div class="process-status muted small"></div>
+      <div class="summary-area hidden"></div>
+      <details class="transcript-details hidden">
+        <summary>Transcript</summary>
+        <div class="transcript"></div>
+      </details>
+      <details class="notes-details hidden">
+        <summary>Timestamped notes</summary>
+        <div class="saved-notes"></div>
+      </details>
+    </article>
+  </template>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

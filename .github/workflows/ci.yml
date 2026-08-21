@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax checks
+        run: npm run check
+      - name: Start server
+        run: |
+          node server.mjs > /tmp/omnivoice.log 2>&1 &
+          echo $! > /tmp/omnivoice.pid
+          sleep 2
+      - name: Health check
+        run: |
+          curl --fail http://127.0.0.1:3000/api/health
+          curl --fail http://127.0.0.1:3000/ | grep -q "OmniVoice Notes"
+      - name: Stop server
+        if: always()
+        run: kill "$(cat /tmp/omnivoice.pid)" || true

@@ -1,0 +1,17 @@
+{
+  "name": "OmniVoice Notes",
+  "short_name": "OmniVoice",
+  "description": "Cross-device local-first voice recording, timestamped notes, transcription and AI summaries.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
