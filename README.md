@@ -1,173 +1,115 @@
-# OmniVoice Notes
+# OmniVoice Notes v2.1 beta
 
-A cross-device, local-first voice recorder and AI note summarizer that runs in the browser and can be installed as a Progressive Web App (PWA).
+OmniVoice Notes is a **local-first, cross-device voice notebook** for modern browsers. It records only after explicit user action and microphone permission, stores recordings in IndexedDB by default, supports near-real-time transcription, and can optionally send chosen audio/transcripts to a server-side AI pipeline for transcription and structured analysis.
 
-## What it does
+> Recording laws and workplace rules vary. OmniVoice never auto-starts or hides recording. The person using it is responsible for obtaining required consent.
 
-- Records microphone audio in supported browsers on iPhone/iPad, Android, Windows, macOS and Linux.
-- Supports **microphone + shared tab/system audio** on desktop browsers that expose `getDisplayMedia()` audio.
-- Shows a visible recording indicator and requires an explicit recording/consent acknowledgement before starting.
-- Adds timestamped notes while a recording is in progress.
-- Saves recordings and notes locally in IndexedDB.
-- Lets users import existing audio files.
-- Sends audio to the configured server only when **Summarize** is pressed.
-- Transcribes audio, then creates a structured summary with key points, decisions, action items and follow-ups.
-- Exports transcript/summary/notes as a `.txt` file.
-- Works offline for recording/library access after the PWA assets have been cached. AI processing still requires network access.
+## v2.1 intelligence layer
 
-## Important browser limitations
+- **TruthTrace:** AI claims carry confidence plus short evidence citations. When real timestamped live/diarized segments exist, clicking a source jumps audio playback to that moment. Untimed transcripts are cited textually and are never given fake timestamps.
+- **OmniMemory:** cross-meeting Q&A. The browser first ranks likely relevant sessions locally; only the top candidate text snippets are sent when the user explicitly asks a question. Answers cite source sessions.
+- **Action Center:** aggregates AI action items across meetings, preserves completion state, creates ICS calendar items, opens an email draft, and supports one-click copy.
+- **What changed?:** recurring-meeting comparison finds an earlier matching session by normalized title, then folder/template fallback, and records supported decision/deadline/owner/status/risk/topic changes.
+- **Semantic-like retrieval:** local query expansion and weighted ranking reduce how much library text must leave the device before the optional AI reasoning step.
 
-A normal website/PWA cannot guarantee unrestricted background or system-wide audio capture on every operating system.
+## What works in v2 beta
 
-- **iOS/iPadOS:** Safari and installed PWAs may suspend microphone capture after the app is backgrounded or the screen locks. Keep the recorder in the foreground for reliable long sessions.
-- **Android:** microphone recording is broadly supported in modern browsers, but background behavior varies by browser/device power management.
-- **Windows/macOS/Linux:** microphone recording works in modern browsers. Chromium-based browsers can often share tab/system audio when the user explicitly chooses a source and enables audio sharing.
-- **Phone calls / other mobile apps:** browsers generally cannot record another app's call/system audio. Native mobile apps require separate OS-specific permissions and APIs.
+### Capture and audio
+- Microphone recording on modern iOS/iPadOS, Android, Windows, macOS and Linux browsers that expose `MediaRecorder`.
+- Desktop mic + tab/system audio when `getDisplayMedia()` returns a shared audio track.
+- Browser noise suppression, echo cancellation and automatic gain control controls.
+- Mixed-stream dynamics compression for mic + system capture.
+- Live waveform visualization.
+- Selectable recording bitrate.
+- Client-side trimming to a new WAV copy with optional peak normalization.
+- Playback speed control.
+- Bookmarks while recording.
 
-This project intentionally does **not** auto-start, silently record, or attempt to bypass browser/OS permission indicators.
+### Live transcription and AI
+- Near-real-time transcription using an `AudioWorklet` PCM capture path and short WAV chunks sent to `/api/live/transcribe`. The compatibility default is `gpt-4o-mini-transcribe`; operators can change the model after validating their preferred transcription endpoint.
+- Final/post-recording transcription when a live transcript is not available.
+- Multi-language hint selection.
+- Custom vocabulary/spelling hints.
+- Structured AI analysis: summary, key points, decisions, action items, follow-ups, tags, topics, evidence-based sentiment label, questions, and flashcard candidates.
+- Meeting modes: general, standup, 1:1, interview, lecture, podcast, retrospective, journal, and dictation.
+- Voice-command markers detected from live transcript phrases such as “mark this as important”, “action item”, “bookmark this”, and “follow up”.
 
-## Architecture
+### Organization and editing
+- Folders, tags and favorites.
+- Search across titles, transcripts, notes, folders, tags, topics and summaries.
+- Newest/oldest/longest/title sorting.
+- Transcript editing with local save.
+- Timestamped notes and bookmark list.
+- Duplicate-audio detection based on a local SHA-256 fingerprint sample.
+- Auto-saved recording draft metadata.
+- Local analytics for session count, recording time, transcript words and folder distribution.
+- Light/dark/system theme.
+- Keyboard shortcuts (`Ctrl/Cmd+K` search, `R` record/stop when not typing, `B` bookmark).
 
-```text
-Browser / PWA
-  ├─ MediaDevices + MediaRecorder
-  ├─ Web Audio API (desktop mic + shared audio mixing)
-  ├─ IndexedDB (recordings, transcript, summaries, timestamped notes)
-  ├─ Service Worker (offline shell)
-  └─ POST /api/process only when user chooses Summarize
-             │
-             ▼
-Node 20+ server (zero external runtime dependencies)
-  ├─ size/rate limits + security headers
-  ├─ audio transcription API
-  └─ Responses API for structured notes/summary
-```
+### Export and sharing
+- Markdown, JSON, TXT and SRT exports.
+- ICS calendar export for AI action items with parseable due dates.
+- End-to-end encrypted **transcript/note/summary sharing**: encryption happens in the browser with AES-GCM; the server stores only ciphertext and an IV. The encryption key stays in the URL fragment and is not sent to the server.
+- Optional fixed outbound webhook configured by the server operator.
 
-The current server defaults to OpenAI transcription and summary models. OpenAI's current platform documentation exposes `/v1/audio/transcriptions` for transcription and `/v1/responses` for text generation. Keep the API key on the server only.
+### PWA / offline
+- Offline-first app-shell cache.
+- IndexedDB local library.
+- Background Sync hook where the browser supports it.
+- Service-worker notification capability for future reminder delivery.
+
+## Important platform limits
+
+- iOS/iPadOS may suspend browser/PWA microphone capture after backgrounding or screen lock. Keep the app foregrounded for reliable long recordings.
+- A browser cannot universally capture phone calls or arbitrary audio from other apps. Desktop shared audio is controlled by the browser/OS capture picker.
+- “Live transcription” in this beta uses short PCM/WAV chunks, not a permanent hidden connection. It is designed for compatibility and graceful fallback.
+
+## Provider-dependent capability
+
+Automatic **speaker diarization** is intentionally provider-pluggable. Set `DIARIZATION_ENDPOINT` to a service you trust that accepts the documented JSON and returns timestamped speaker segments. Without it, OmniVoice does not pretend to know who spoke.
+
+## Not falsely marked as finished
+
+The following are architectural roadmap items rather than fake checkboxes in this beta: true multi-user live co-editing, native iOS/Android background capture, SAML/SSO, billing, team admin/audit policy console, full cloud audio sync, native Electron/Tauri/React-Native apps, browser/VS Code extensions, phone/SIP capture, remote push scheduling, DOCX/PDF binary generation, WebRTC meeting ingestion, and third-party OAuth integrations such as Notion/Slack/Google Calendar.
 
 ## Run locally
 
-Requirements: **Node.js 20+**.
+Requirements: Node.js 20+.
 
 ```bash
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY if you want transcription/summaries.
-
+# add OPENAI_API_KEY to .env for AI features
+npm run check
 npm start
 ```
 
-Open:
+Open `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
-
-`localhost` is treated as a secure context by browsers. For testing from a phone over your LAN, microphone access normally requires the site to be served over **HTTPS** instead of plain `http://192.168.x.x`.
+For microphone access from another device, deploy over **HTTPS**; browsers normally require a secure context for microphone APIs outside localhost.
 
 ## Environment variables
 
-```dotenv
-OPENAI_API_KEY=
-PORT=3000
-OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
-OPENAI_SUMMARY_MODEL=gpt-5.6-luna
-MAX_AUDIO_MB=18
-```
+See `.env.example`. Primary settings:
 
-`MAX_AUDIO_MB` is intentionally conservative because the browser sends the selected recording to this small reference server as base64 JSON before the server converts it to multipart audio for transcription. For very long recordings, production deployments should implement chunked/multipart uploads or direct-to-object-storage uploads with short-lived signed URLs.
+- `OPENAI_API_KEY`
+- `OPENAI_TRANSCRIBE_MODEL`
+- `OPENAI_LIVE_TRANSCRIBE_MODEL`
+- `OPENAI_SUMMARY_MODEL`
+- `MAX_AUDIO_MB`
+- `DIARIZATION_ENDPOINT` / `DIARIZATION_BEARER_TOKEN`
+- `OUTBOUND_WEBHOOK_URL` / `OUTBOUND_WEBHOOK_BEARER_TOKEN`
+- `SHARE_TTL_HOURS`
+- `MAX_SHARE_KB`
 
-## Install on devices
+## Privacy model
 
-### iPhone / iPad
-
-1. Open the HTTPS site in Safari.
-2. Tap **Share**.
-3. Choose **Add to Home Screen**.
-4. Open the installed app and allow microphone access when prompted.
-
-### Android
-
-1. Open the HTTPS site in Chrome/Edge.
-2. Use **Install app** / **Add to Home screen** when offered.
-3. Allow microphone access.
-
-### Windows / macOS / Linux
-
-Open the HTTPS site in Chrome/Edge (or another PWA-capable browser) and use the browser's **Install app** action. Regular browser use also works without installation.
-
-## Deploy with Docker
-
-```bash
-docker build -t omnivoice-notes .
-docker run --rm -p 3000:3000 \
-  -e OPENAI_API_KEY='your-key' \
-  omnivoice-notes
-```
-
-Put the container behind an HTTPS reverse proxy or a hosting platform that provides TLS.
-
-## Data model
-
-Each local session contains:
-
-```json
-{
-  "id": "uuid",
-  "title": "Meeting name",
-  "createdAt": "ISO timestamp",
-  "durationMs": 123456,
-  "mimeType": "audio/webm",
-  "blob": "IndexedDB Blob",
-  "notes": [{ "timeMs": 42000, "text": "Important decision" }],
-  "transcript": "...",
-  "summary": {
-    "headline": "...",
-    "summary": "...",
-    "keyPoints": [],
-    "decisions": [],
-    "actionItems": [{ "task": "...", "owner": "", "due": "" }],
-    "followUps": [],
-    "tags": []
-  }
-}
-```
-
-## Privacy and security defaults
-
-- Audio is local until the user explicitly presses **Summarize**.
-- The API key never appears in browser JavaScript.
-- A visible red recording badge remains on-screen during capture.
-- Recording requires the browser's microphone permission plus the in-app acknowledgement.
-- The server sends restrictive CSP, Permissions Policy, no-sniff, no-referrer and anti-framing headers.
-- `/api/process` has a per-IP basic in-memory rate limit and maximum request/audio size.
-- No recordings are committed to Git or stored on the server by this reference implementation.
-
-For an organizational deployment, add authenticated user accounts, encrypted object storage, retention policies, audit logs, tenant isolation, malware/content checks on uploaded files, and a documented consent/records policy.
-
-## Development checks
-
-```bash
-npm run check
-```
-
-No package installation is required for the current codebase.
-
-## Roadmap
-
-- Chunked uploads for multi-hour recordings.
-- Optional S3/Azure Blob/Google Cloud Storage sync with client-controlled retention.
-- User authentication and cross-device encrypted sync.
-- Speaker diarization when the selected transcription provider supports it.
-- Search across transcripts and summaries.
-- Calendar-linked meeting titles.
-- Webhook/export integrations (email, Slack, Teams, Markdown, PDF).
-- Optional native iOS/Android wrappers for stronger background recording behavior where platform policy allows it.
-- End-to-end encryption mode where transcription runs locally/on a user-controlled worker.
-
-## Legal / consent
-
-Recording laws and workplace/school policies differ by jurisdiction and context. Users are responsible for obtaining any required consent and complying with applicable privacy, employment, education and records-retention rules.
+1. Recordings are local IndexedDB blobs by default.
+2. Live transcription sends only short PCM/WAV chunks when enabled.
+3. Final AI processing is explicit and sends audio only when a transcript is unavailable; otherwise the transcript can be analyzed directly.
+4. Server secrets remain server-side.
+5. Encrypted share payloads exclude audio in v2.1 beta and are opaque ciphertext to the share server.
+6. No arbitrary user-supplied webhook target is accepted, avoiding an SSRF-style integration endpoint.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See `LICENSE`.

@@ -1,156 +1,157 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
-  <meta name="description" content="Cross-device local-first voice recording, timestamped notes, transcription and AI summaries." />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="OmniVoice Notes — local-first voice recording, live transcription, AI summaries and secure sharing." />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <link rel="stylesheet" href="/styles.css" />
-  <title>OmniVoice Notes</title>
+  <link rel="stylesheet" href="/intelligence.css" />
+  <title>OmniVoice Notes v2.1</title>
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="brand">OmniVoice Notes</div>
-      <div class="subbrand">Record. Note. Transcribe. Summarize.</div>
+      <div class="brand">OmniVoice Notes <span class="version">v2.1 beta</span></div>
+      <div class="subbrand">Record • live transcribe • organize • summarize • share securely</div>
     </div>
-    <div class="status-row">
+    <div class="top-actions">
       <span class="pill">Local-first</span>
       <span id="platformPill" class="pill secondary">Browser</span>
+      <button id="themeBtn" class="icon-button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+      <button id="memoryBtn" class="button small-button">OmniMemory</button>
+      <button id="actionsBtn" class="button small-button">Action center</button>
+      <button id="analyticsBtn" class="button small-button">Analytics</button>
     </div>
   </header>
 
-  <main class="layout">
-    <section class="card recorder-card">
-      <div class="section-heading">
-        <div>
-          <h1>New recording</h1>
-          <p>Microphone capture works across modern iOS, Android, Windows, macOS and Linux browsers when microphone permission is granted.</p>
-        </div>
-        <div id="recordingBadge" class="recording-badge hidden"><span class="dot"></span> Recording</div>
+  <main class="app-shell">
+    <aside class="sidebar card">
+      <div class="sidebar-head">
+        <strong>Library</strong>
+        <button id="newFolderBtn" class="icon-button" title="New folder">＋</button>
       </div>
-
-      <div class="grid two">
-        <label>
-          <span>Title</span>
-          <input id="titleInput" type="text" maxlength="120" placeholder="Meeting, idea, interview…" />
-        </label>
-        <label>
-          <span>Capture source</span>
-          <select id="captureMode">
-            <option value="mic">Microphone</option>
-            <option id="systemOption" value="mic-system">Microphone + tab/system audio</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="consent">
-        <input id="consentInput" type="checkbox" />
-        <span>I understand I must have permission to record other people and follow applicable recording laws/policies.</span>
-      </label>
-
-      <div class="timer-wrap">
-        <div id="timer" class="timer">00:00</div>
-        <div id="recorderStatus" class="muted">Ready</div>
-      </div>
-
-      <div class="button-row primary-actions">
-        <button id="startBtn" class="button primary">Start recording</button>
-        <button id="pauseBtn" class="button" disabled>Pause</button>
-        <button id="stopBtn" class="button danger" disabled>Stop & save</button>
-      </div>
-
-      <div id="iosWarning" class="notice warning hidden">
-        iPhone/iPad browsers can suspend microphone recording when Safari/PWA is backgrounded or the screen locks. Keep this app in the foreground for reliable long recordings.
-      </div>
-      <div id="systemWarning" class="notice hidden"></div>
-
+      <button class="nav-item active" data-filter="all">All notes <span id="countAll">0</span></button>
+      <button class="nav-item" data-filter="favorites">★ Favorites <span id="countFavorites">0</span></button>
+      <button class="nav-item" data-filter="today">Today</button>
+      <div class="sidebar-section-title">Folders</div>
+      <div id="folderList" class="nav-list"></div>
+      <div class="sidebar-section-title">Tags</div>
+      <div id="tagList" class="tag-cloud"></div>
       <hr />
+      <button id="persistBtn" class="button small-button wide">Protect local storage</button>
+      <div id="persistStatus" class="muted tiny"></div>
+    </aside>
 
-      <div class="notes-panel">
-        <div class="section-heading compact">
+    <section class="workspace">
+      <section class="card recorder-card">
+        <div class="section-heading">
           <div>
-            <h2>Timestamped notes</h2>
-            <p>Add a note while recording and it is saved with the exact session time.</p>
+            <h1>New recording</h1>
+            <p>Visible, consent-based browser recording with local storage and optional live transcription.</p>
+          </div>
+          <div id="recordingBadge" class="recording-badge hidden"><span class="dot"></span> Recording</div>
+        </div>
+
+        <div class="grid three">
+          <label><span>Title</span><input id="titleInput" maxlength="120" placeholder="Meeting, lecture, idea…" /></label>
+          <label><span>Template</span><select id="meetingTemplate">
+            <option value="general">General note</option><option value="standup">Standup</option><option value="one-on-one">1:1</option>
+            <option value="interview">Interview</option><option value="lecture">Lecture</option><option value="podcast">Podcast</option>
+            <option value="retrospective">Retrospective</option><option value="journal">Journal</option><option value="dictation">Dictation</option>
+          </select></label>
+          <label><span>Folder</span><input id="folderInput" list="folderOptions" maxlength="80" placeholder="Inbox" /><datalist id="folderOptions"></datalist></label>
+        </div>
+
+        <div class="grid three">
+          <label><span>Capture</span><select id="captureMode"><option value="mic">Microphone</option><option id="systemOption" value="mic-system">Microphone + tab/system audio</option></select></label>
+          <label><span>Language</span><select id="languageSelect"><option value="">Auto detect</option><option value="en">English</option><option value="es">Spanish</option><option value="hi">Hindi</option><option value="te">Telugu</option><option value="ne">Nepali</option><option value="fr">French</option><option value="de">German</option><option value="ja">Japanese</option></select></label>
+          <label><span>Audio quality</span><select id="qualitySelect"><option value="64000">Data saver</option><option value="128000" selected>Balanced</option><option value="192000">High</option></select></label>
+        </div>
+
+        <div class="settings-strip">
+          <label class="check"><input id="liveTranscription" type="checkbox" checked /> Live transcription</label>
+          <label class="check"><input id="noiseSuppression" type="checkbox" checked /> Noise suppression</label>
+          <label class="check"><input id="autoGain" type="checkbox" checked /> Auto gain</label>
+          <label class="check"><input id="voiceCommands" type="checkbox" checked /> Voice commands</label>
+          <label><span>Vocabulary</span><input id="customVocabulary" maxlength="500" placeholder="Names, acronyms, technical terms" /></label>
+        </div>
+
+        <label class="consent"><input id="consentInput" type="checkbox" /><span>I have permission to record and will follow applicable laws, workplace rules and participant consent requirements.</span></label>
+
+        <canvas id="waveform" class="waveform" width="1200" height="180" aria-label="Live audio waveform"></canvas>
+        <div class="timer-wrap"><div id="timer" class="timer">00:00</div><div id="recorderStatus" class="muted">Ready</div></div>
+        <div class="button-row primary-actions">
+          <button id="startBtn" class="button primary">Start recording</button><button id="pauseBtn" class="button" disabled>Pause</button>
+          <button id="bookmarkBtn" class="button" disabled>★ Bookmark</button><button id="stopBtn" class="button danger" disabled>Stop & save</button>
+        </div>
+
+        <div id="iosWarning" class="notice warning hidden">iPhone/iPad may suspend browser microphone capture when the app is backgrounded or the screen locks. Keep OmniVoice in the foreground for reliable long recordings.</div>
+        <div id="systemWarning" class="notice hidden"></div>
+
+        <div class="live-grid">
+          <div>
+            <div class="section-heading compact"><div><h2>Live transcript</h2><p>Near-real-time chunks. Final transcription can still be run after recording.</p></div><span id="liveStatus" class="pill secondary">idle</span></div>
+            <div id="liveTranscript" class="live-transcript empty">Live transcript will appear here.</div>
+          </div>
+          <div>
+            <div class="section-heading compact"><div><h2>Timestamped notes</h2><p>Try: “mark this as important” or “action item” while live transcription is enabled.</p></div></div>
+            <div class="note-entry"><input id="noteInput" maxlength="500" placeholder="Decision, action item, quote…" disabled /><button id="addNoteBtn" class="button" disabled>Add</button></div>
+            <div id="activeNotes" class="notes-list empty">No notes yet.</div>
           </div>
         </div>
-        <div class="note-entry">
-          <input id="noteInput" type="text" maxlength="500" placeholder="Decision, action item, important quote…" disabled />
-          <button id="addNoteBtn" class="button" disabled>Add note</button>
+
+        <div class="import-row"><div><strong>Import existing audio</strong><div class="muted small">Add audio to the same local library and process it later.</div></div><label class="button file-button">Import audio<input id="fileInput" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.mp4" hidden /></label></div>
+      </section>
+
+      <section class="card library-card">
+        <div class="section-heading">
+          <div><h2>Saved sessions</h2><p>Search transcript, notes, tags and folders. Data stays in this browser unless you explicitly process or share it.</p></div>
+          <button id="refreshBtn" class="button small-button">Refresh</button>
         </div>
-        <div id="activeNotes" class="notes-list empty">No notes yet.</div>
-      </div>
-
-      <hr />
-
-      <div class="import-row">
-        <div>
-          <strong>Already have an audio file?</strong>
-          <div class="muted small">Import it into the local session library, then summarize it.</div>
+        <div class="search-row">
+          <input id="searchInput" type="search" placeholder="Search title, transcript, notes, tags… (⌘/Ctrl+K)" />
+          <select id="sortSelect"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="longest">Longest</option><option value="title">Title</option></select>
         </div>
-        <label class="button file-button">
-          Import audio
-          <input id="fileInput" type="file" accept="audio/*,.m4a,.mp3,.wav,.webm,.mp4" hidden />
-        </label>
-      </div>
-    </section>
-
-    <section class="card privacy-card">
-      <h2>Privacy & compatibility</h2>
-      <ul>
-        <li>Recordings are saved in this browser's IndexedDB by default.</li>
-        <li>Audio is sent to the configured server only when you tap <strong>Summarize</strong>.</li>
-        <li>No API key is stored in browser code.</li>
-        <li>The app never auto-starts recording or tries to hide the recording state.</li>
-        <li>Desktop system/tab audio depends on browser support and the source you select. Mobile browsers generally cannot capture phone calls or audio from other apps.</li>
-      </ul>
-      <button id="persistBtn" class="button small-button">Request persistent local storage</button>
-      <div id="persistStatus" class="muted small"></div>
-    </section>
-
-    <section class="card sessions-card">
-      <div class="section-heading">
-        <div>
-          <h2>Saved sessions</h2>
-          <p>Your local recording library on this device/browser.</p>
-        </div>
-        <button id="refreshBtn" class="button small-button">Refresh</button>
-      </div>
-      <div id="sessions" class="sessions-list"></div>
+        <div id="sessions" class="sessions-list"></div>
+      </section>
     </section>
   </main>
 
+
+  <dialog id="memoryDialog" class="modal"><form method="dialog"><div class="modal-head"><div><h2>OmniMemory</h2><p class="muted small">Your browser ranks memories locally first. Only the top relevant text snippets are sent when you press Ask.</p></div><button class="icon-button">×</button></div><label><span>Ask across your meetings</span><textarea id="memoryQuestion" rows="3" placeholder="What did we decide about the rollout? What commitments are still open?"></textarea></label><div class="button-row"><button id="memoryRunBtn" type="button" class="button primary">Ask OmniMemory</button><span id="memoryStatus" class="muted small"></span></div><div id="memoryResults" class="memory-results"></div></form></dialog>
+  <dialog id="actionsDialog" class="modal"><form method="dialog"><div class="modal-head"><div><h2>Action center</h2><p class="muted small">Cross-meeting commitments you can complete, calendar, draft into email, or copy.</p></div><button class="icon-button">×</button></div><div id="actionsContent" class="actions-content"></div></form></dialog>
+  <dialog id="analyticsDialog" class="modal"><form method="dialog"><div class="modal-head"><h2>Local analytics</h2><button class="icon-button">×</button></div><div id="analyticsContent"></div></form></dialog>
+  <dialog id="shareDialog" class="modal"><form method="dialog"><div class="modal-head"><h2>Encrypted share link</h2><button class="icon-button">×</button></div><p class="muted">Transcript, notes and AI summary are encrypted in your browser before upload. Audio is not included.</p><textarea id="shareLink" rows="4" readonly></textarea><button id="copyShareBtn" type="button" class="button primary">Copy link</button></form></dialog>
+  <dialog id="trimDialog" class="modal"><form method="dialog"><div class="modal-head"><h2>Trim audio</h2><button class="icon-button">×</button></div><input id="trimSessionId" type="hidden" /><div class="grid two"><label><span>Start (seconds)</span><input id="trimStart" type="number" min="0" step="0.1" value="0" /></label><label><span>End (seconds)</span><input id="trimEnd" type="number" min="0" step="0.1" /></label></div><label class="check"><input id="trimNormalize" type="checkbox" checked /> Normalize peak level in exported WAV</label><button id="trimSaveBtn" type="button" class="button primary">Save trimmed copy</button><div id="trimStatus" class="muted small"></div></form></dialog>
+  <dialog id="sharedImportDialog" class="modal"><form method="dialog"><div class="modal-head"><h2>Encrypted shared note</h2><button class="icon-button">×</button></div><div id="sharedImportContent"></div><button id="importSharedBtn" type="button" class="button primary">Import to my local library</button></form></dialog>
+
   <template id="sessionTemplate">
     <article class="session">
-      <div class="session-head">
-        <div>
-          <h3 class="session-title"></h3>
-          <div class="session-meta muted small"></div>
-        </div>
-        <div class="session-tags"></div>
-      </div>
+      <div class="session-head"><div><div class="title-row"><button class="favorite-btn icon-button" title="Favorite">☆</button><h3 class="session-title"></h3></div><div class="session-meta muted small"></div></div><div class="session-tags"></div></div>
+      <div class="folder-line muted tiny"></div>
       <audio class="session-audio" controls preload="metadata"></audio>
+      <div class="playback-row"><label>Speed <select class="speed-select"><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select>×</label><button class="button bookmark-list-btn">Bookmarks</button></div>
       <div class="button-row session-actions">
-        <button class="button summarize-btn">Summarize</button>
-        <button class="button export-btn">Export text</button>
-        <button class="button danger-outline delete-btn">Delete</button>
+        <button class="button summarize-btn">Analyze</button><button class="button compare-btn">What changed?</button><button class="button diarize-btn">Diarize</button><button class="button trim-btn">Trim</button>
+        <button class="button export-btn">Export</button><button class="button share-btn">Share encrypted</button><button class="button danger-outline delete-btn">Delete</button>
       </div>
       <div class="process-status muted small"></div>
       <div class="summary-area hidden"></div>
-      <details class="transcript-details hidden">
-        <summary>Transcript</summary>
-        <div class="transcript"></div>
-      </details>
-      <details class="notes-details hidden">
-        <summary>Timestamped notes</summary>
-        <div class="saved-notes"></div>
-      </details>
+      <div class="comparison-area hidden"></div>
+      <details class="transcript-details hidden"><summary>Transcript</summary><textarea class="transcript-editor" rows="8"></textarea><div class="button-row"><button class="button save-transcript-btn">Save transcript edits</button><button class="button srt-btn">Export SRT</button></div></details>
+      <details class="notes-details hidden"><summary>Notes & bookmarks</summary><div class="saved-notes"></div></details>
+      <details class="metadata-details"><summary>Organization</summary><div class="grid two"><label><span>Folder</span><input class="session-folder" maxlength="80" /></label><label><span>Tags (comma separated)</span><input class="session-tags-input" maxlength="250" /></label></div><button class="button save-meta-btn">Save organization</button></details>
     </article>
   </template>
 
-  <script src="/app.js" type="module"></script>
+  <script defer src="/app-shell.js"></script>
+  <script defer src="/app-recording.js"></script>
+  <script defer src="/app-library.js"></script>
+  <script defer src="/app-intelligence.js"></script>
+  <script defer src="/app-utils.js"></script>
+  <script defer src="/app-bootstrap.js"></script>
 </body>
 </html>
