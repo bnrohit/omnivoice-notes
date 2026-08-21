@@ -1,8 +1,16 @@
-# OmniVoice Notes v2 beta
+# OmniVoice Notes v2.1 beta
 
 OmniVoice Notes is a **local-first, cross-device voice notebook** for modern browsers. It records only after explicit user action and microphone permission, stores recordings in IndexedDB by default, supports near-real-time transcription, and can optionally send chosen audio/transcripts to a server-side AI pipeline for transcription and structured analysis.
 
 > Recording laws and workplace rules vary. OmniVoice never auto-starts or hides recording. The person using it is responsible for obtaining required consent.
+
+## v2.1 intelligence layer
+
+- **TruthTrace:** AI claims carry confidence plus short evidence citations. When real timestamped live/diarized segments exist, clicking a source jumps audio playback to that moment. Untimed transcripts are cited textually and are never given fake timestamps.
+- **OmniMemory:** cross-meeting Q&A. The browser first ranks likely relevant sessions locally; only the top candidate text snippets are sent when the user explicitly asks a question. Answers cite source sessions.
+- **Action Center:** aggregates AI action items across meetings, preserves completion state, creates ICS calendar items, opens an email draft, and supports one-click copy.
+- **What changed?:** recurring-meeting comparison finds an earlier matching session by normalized title, then folder/template fallback, and records supported decision/deadline/owner/status/risk/topic changes.
+- **Semantic-like retrieval:** local query expansion and weighted ranking reduce how much library text must leave the device before the optional AI reasoning step.
 
 ## What works in v2 beta
 
@@ -99,7 +107,7 @@ See `.env.example`. Primary settings:
 2. Live transcription sends only short PCM/WAV chunks when enabled.
 3. Final AI processing is explicit and sends audio only when a transcript is unavailable; otherwise the transcript can be analyzed directly.
 4. Server secrets remain server-side.
-5. Encrypted share payloads exclude audio in v2 beta and are opaque ciphertext to the share server.
+5. Encrypted share payloads exclude audio in v2.1 beta and are opaque ciphertext to the share server.
 6. No arbitrary user-supplied webhook target is accepted, avoiding an SSRF-style integration endpoint.
 
 ## License
