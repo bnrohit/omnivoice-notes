@@ -2,6 +2,11 @@
 
 ## Implemented in this branch
 
+- TruthTrace evidence-linked AI claims with confidence and clickable real timestamps
+- OmniMemory cross-meeting Q&A with local-first candidate ranking
+- Cross-meeting Action Center with completion state, calendar and email-draft helpers
+- Recurring-meeting “What changed?” comparisons
+- Local semantic-like query expansion/ranking before optional AI reasoning
 - Near-real-time chunk transcription
 - Live waveform
 - Noise suppression / AGC controls
