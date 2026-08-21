@@ -27,9 +27,12 @@ jobs:
           curl --fail http://127.0.0.1:3000/api/health | grep -q '"ok":true'
           curl --fail http://127.0.0.1:3000/ | grep -q "OmniVoice Notes"
           curl --fail http://127.0.0.1:3000/live-capture-worklet.js | grep -q "registerProcessor"
+          curl --fail http://127.0.0.1:3000/app-intelligence.js | grep -q "runOmniMemoryQuery"
           curl --fail -X POST http://127.0.0.1:3000/api/shares \
             -H 'Content-Type: application/json' \
             --data '{"ciphertext":"YWJjZA==","iv":"MTIzNDU2Nzg5MDEy"}' | grep -q '"id"'
+          test "$(curl -s -o /tmp/memory.json -w '%{http_code}' -X POST http://127.0.0.1:3000/api/memory/query -H 'Content-Type: application/json' --data '{"question":"test","sessions":[{"id":"1","title":"Test"}]}')" = "503"
+          grep -q 'AI processing is not configured' /tmp/memory.json
       - name: Stop server
         if: always()
         run: kill "$(cat /tmp/omnivoice.pid)" || true
