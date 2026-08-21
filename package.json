@@ -1,6 +1,6 @@
 {
   "name": "omnivoice-notes",
-  "version": "2.0.0-beta.1",
+  "version": "2.1.0-beta.1",
   "private": true,
   "description": "Local-first cross-device voice notes with live transcription, AI analysis, secure sharing, organization, waveform tools and offline PWA support.",
   "type": "module",
@@ -10,6 +10,6 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check public/app-shell.js && node --check public/app-recording.js && node --check public/app-library.js && node --check public/app-utils.js && node --check public/app-bootstrap.js && node --check public/sw.js && node --check public/live-capture-worklet.js"
+    "check": "node --check server.mjs && node --check public/app-shell.js && node --check public/app-recording.js && node --check public/app-library.js && node --check public/app-intelligence.js && node --check public/app-utils.js && node --check public/app-bootstrap.js && node --check public/sw.js && node --check public/live-capture-worklet.js"
   }
 }

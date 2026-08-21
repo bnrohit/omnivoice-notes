@@ -9,7 +9,8 @@ const els = {
   refresh: $('#refreshBtn'), persist: $('#persistBtn'), persistStatus: $('#persistStatus'), platform: $('#platformPill'), iosWarning: $('#iosWarning'),
   systemWarning: $('#systemWarning'), fileInput: $('#fileInput'), sessionTemplate: $('#sessionTemplate'), search: $('#searchInput'), sort: $('#sortSelect'),
   folderList: $('#folderList'), tagList: $('#tagList'), folderOptions: $('#folderOptions'), countAll: $('#countAll'), countFavorites: $('#countFavorites'),
-  newFolder: $('#newFolderBtn'), theme: $('#themeBtn'), analytics: $('#analyticsBtn'), analyticsDialog: $('#analyticsDialog'), analyticsContent: $('#analyticsContent'),
+  newFolder: $('#newFolderBtn'), theme: $('#themeBtn'), memoryBtn: $('#memoryBtn'), actionsBtn: $('#actionsBtn'), analytics: $('#analyticsBtn'), analyticsDialog: $('#analyticsDialog'), analyticsContent: $('#analyticsContent'),
+  memoryDialog: $('#memoryDialog'), memoryQuestion: $('#memoryQuestion'), memoryRun: $('#memoryRunBtn'), memoryStatus: $('#memoryStatus'), memoryResults: $('#memoryResults'), actionsDialog: $('#actionsDialog'), actionsContent: $('#actionsContent'),
   shareDialog: $('#shareDialog'), shareLink: $('#shareLink'), copyShare: $('#copyShareBtn'), trimDialog: $('#trimDialog'), trimSessionId: $('#trimSessionId'),
   trimStart: $('#trimStart'), trimEnd: $('#trimEnd'), trimNormalize: $('#trimNormalize'), trimSave: $('#trimSaveBtn'), trimStatus: $('#trimStatus'),
   sharedDialog: $('#sharedImportDialog'), sharedContent: $('#sharedImportContent'), importShared: $('#importSharedBtn')
@@ -63,6 +64,7 @@ async function init() {
     els.systemOption.disabled = true;
     els.systemOption.textContent = 'Microphone + tab/system audio (not supported here)';
   }
+  bindIntelligenceEvents();
   await maybeOpenSharedLink();
 }
 

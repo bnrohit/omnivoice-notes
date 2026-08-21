@@ -1,5 +1,5 @@
-const CACHE = 'omnivoice-v2-beta1';
-const ASSETS = ['/', '/index.html', '/styles.css', '/app-shell.js', '/app-recording.js', '/app-library.js', '/app-utils.js', '/app-bootstrap.js', '/manifest.webmanifest', '/icons/icon.svg', '/live-capture-worklet.js'];
+const CACHE = 'omnivoice-v2-1-beta1';
+const ASSETS = ['/', '/index.html', '/styles.css', '/intelligence.css', '/app-shell.js', '/app-recording.js', '/app-library.js', '/app-intelligence.js', '/app-utils.js', '/app-bootstrap.js', '/manifest.webmanifest', '/icons/icon.svg', '/live-capture-worklet.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));

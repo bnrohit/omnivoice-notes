@@ -3,7 +3,7 @@ async function importAudio(event) {
   const fingerprint = await fingerprintBlob(file); const existing = (await listSessions()).find(s => s.fingerprint === fingerprint);
   if (existing && !confirm(`This file looks like a duplicate of “${existing.title}”. Import anyway?`)) return;
   const now = new Date();
-  const session = { id: uid(), title: file.name.replace(/\.[^.]+$/, '') || `Imported audio ${now.toLocaleString()}`, createdAt: now.toISOString(), durationMs: 0, mimeType: file.type || inferMime(file.name), blob: file, notes: [], transcript: '', segments: [], summary: null, folder: els.folder.value.trim() || 'Inbox', tags: [], favorite: false, template: els.template.value, language: els.language.value, vocabulary: els.vocabulary.value.trim(), fingerprint, version: 2 };
+  const session = { id: uid(), title: file.name.replace(/\.[^.]+$/, '') || `Imported audio ${now.toLocaleString()}`, createdAt: now.toISOString(), durationMs: 0, mimeType: file.type || inferMime(file.name), blob: file, notes: [], transcript: '', segments: [], summary: null, folder: els.folder.value.trim() || 'Inbox', tags: [], favorite: false, template: els.template.value, language: els.language.value, vocabulary: els.vocabulary.value.trim(), fingerprint, version: 2.1 };
   try { await putSession(session); setStatus(`Imported ${file.name} locally.`); await renderSessions(); } catch (error) { setStatus(`Import failed: ${error?.message || error}`); }
 }
 
@@ -26,6 +26,7 @@ async function renderSessions() {
 function bindSessionActions(root, id, article) {
   root.querySelector('.favorite-btn').addEventListener('click', async () => { const s = await getSession(id); s.favorite = !s.favorite; await putSession(s); renderSessions(); });
   root.querySelector('.summarize-btn').addEventListener('click', () => processSession(id, article));
+  root.querySelector('.compare-btn').addEventListener('click', () => compareWithPrevious(id, article));
   root.querySelector('.diarize-btn').addEventListener('click', () => diarizeSession(id, article));
   root.querySelector('.trim-btn').addEventListener('click', () => openTrim(id));
   root.querySelector('.export-btn').addEventListener('click', () => exportSessionPrompt(id));
@@ -40,7 +41,8 @@ function bindSessionActions(root, id, article) {
 function renderStoredContent(root, session) {
   const summaryArea = root.querySelector('.summary-area'); const tags = root.querySelector('.session-tags'); const transcriptDetails = root.querySelector('.transcript-details'); const notesDetails = root.querySelector('.notes-details');
   const mergedTags = [...new Set([...(session.tags || []), ...(session.summary?.tags || [])])].slice(0, 10); tags.replaceChildren(...mergedTags.map(tag => spanNode('tag', tag)));
-  if (session.summary) { summaryArea.classList.remove('hidden'); summaryArea.innerHTML = summaryHtml(session.summary); }
+  if (session.summary) { summaryArea.classList.remove('hidden'); summaryArea.innerHTML = summaryHtml(session.summary); bindTruthTraceSources(root); }
+  renderComparisonArea(root, session);
   if (session.transcript) { transcriptDetails.classList.remove('hidden'); root.querySelector('.transcript-editor').value = session.transcript; }
   if (session.notes?.length) { notesDetails.classList.remove('hidden'); root.querySelector('.saved-notes').textContent = session.notes.map(n => `[${formatDuration(n.timeMs)}]${n.kind && n.kind !== 'note' ? ` [${n.kind}]` : ''} ${n.text}`).join('\n'); }
   root.querySelector('.session-folder').value = session.folder || 'Inbox'; root.querySelector('.session-tags-input').value = (session.tags || []).join(', ');
@@ -58,9 +60,9 @@ async function processSession(id, article) {
       status.textContent = 'Preparing audio…'; audioBase64 = await blobToBase64(session.blob);
     }
     status.textContent = session.transcript ? 'Analyzing transcript…' : 'Transcribing and analyzing…';
-    const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioBase64, mimeType: session.mimeType || session.blob?.type || 'audio/webm', fileName: makeAudioFileName(session), title: session.title, notes: session.notes || [], template: session.template || 'general', language: session.language || '', vocabulary: session.vocabulary || '', transcript: session.transcript || '' }) });
+    const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioBase64, mimeType: session.mimeType || session.blob?.type || 'audio/webm', fileName: makeAudioFileName(session), title: session.title, notes: session.notes || [], template: session.template || 'general', language: session.language || '', vocabulary: session.vocabulary || '', transcript: session.transcript || '', segments: session.segments || [], durationMs: session.durationMs || 0 }) });
     const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || `Processing failed (${response.status}).`);
-    session.transcript = payload.transcript || session.transcript || ''; session.summary = payload.summary || null; session.tags = [...new Set([...(session.tags || []), ...(session.summary?.tags || [])])].slice(0, 30); await putSession(session);
+    const completedTasks = new Set((session.summary?.actionItems || []).filter(a => a.done).map(a => String(a.task || '').trim().toLowerCase())); session.transcript = payload.transcript || session.transcript || ''; session.summary = payload.summary || null; if (session.summary?.actionItems) session.summary.actionItems = session.summary.actionItems.map(a => ({ ...a, done: completedTasks.has(String(a.task || '').trim().toLowerCase()) })); session.tags = [...new Set([...(session.tags || []), ...(session.summary?.tags || [])])].slice(0, 30); await putSession(session);
     status.textContent = 'Analysis saved locally.'; await renderSessions();
   } catch (error) { status.textContent = error?.message || String(error); } finally { button.disabled = false; }
 }

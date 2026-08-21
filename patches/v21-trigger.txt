@@ -1,1 +1,0 @@
-Apply the tested OmniVoice Notes v2.1 intelligence patch set.

@@ -63,7 +63,7 @@ const server = http.createServer(async (req, res) => {
       if (!allowRequest(req)) return json(res, 429, { error: 'Too many processing requests. Try again in a minute.' });
       requireAI();
       const body = await readJson(req, MAX_JSON_BYTES);
-      const { audioBase64, mimeType = 'audio/webm', fileName = 'recording.webm', title = 'Voice note', notes = [], template = 'general', language = '', vocabulary = '', transcript: providedTranscript = '' } = body || {};
+      const { audioBase64, mimeType = 'audio/webm', fileName = 'recording.webm', title = 'Voice note', notes = [], template = 'general', language = '', vocabulary = '', transcript: providedTranscript = '', segments = [], durationMs = 0 } = body || {};
       let transcript = String(providedTranscript || '').trim();
       if (!transcript) {
         if (!audioBase64 || typeof audioBase64 !== 'string') return json(res, 400, { error: 'Missing audio data or transcript.' });
@@ -72,7 +72,7 @@ const server = http.createServer(async (req, res) => {
         if (audioBuffer.length > MAX_AUDIO_MB * 1024 * 1024) return json(res, 413, { error: `Audio exceeds the ${MAX_AUDIO_MB} MB processing limit.` });
         transcript = await transcribeAudio(audioBuffer, mimeType, sanitizeFileName(fileName), { model: TRANSCRIBE_MODEL, language, vocabulary });
       }
-      const summary = await summarizeTranscript({ title, transcript, notes, template, language });
+      const summary = await summarizeTranscript({ title, transcript, notes, template, language, segments, durationMs });
       await fireConfiguredWebhook({ event: 'session.processed', title, transcript, summary }).catch(err => console.warn('Webhook:', err.message));
       return json(res, 200, { transcript, summary });
     }
@@ -92,6 +92,29 @@ const server = http.createServer(async (req, res) => {
       const payload = await safeJson(provider);
       if (!provider.ok) throw upstreamError('Diarization provider failed', provider.status, payload);
       return json(res, 200, payload);
+    }
+
+
+
+    if (url.pathname === '/api/memory/query' && req.method === 'POST') {
+      if (!allowRequest(req)) return json(res, 429, { error: 'Too many memory requests.' });
+      requireAI();
+      const body = await readJson(req, 1024 * 1024);
+      const question = String(body?.question || '').trim();
+      const sessions = Array.isArray(body?.sessions) ? body.sessions.slice(0, 16) : [];
+      if (!question) return json(res, 400, { error: 'Ask a question first.' });
+      if (!sessions.length) return json(res, 400, { error: 'No memory candidates were supplied.' });
+      const result = await answerMemoryQuestion(question, sessions);
+      return json(res, 200, result);
+    }
+
+    if (url.pathname === '/api/compare' && req.method === 'POST') {
+      if (!allowRequest(req)) return json(res, 429, { error: 'Too many comparison requests.' });
+      requireAI();
+      const body = await readJson(req, 768 * 1024);
+      if (!body?.current || !body?.previous) return json(res, 400, { error: 'Current and previous sessions are required.' });
+      const result = await compareMeetings(body.current, body.previous);
+      return json(res, 200, result);
     }
 
     if (url.pathname === '/api/shares' && req.method === 'POST') {
@@ -152,8 +175,9 @@ async function transcribeAudio(buffer, mimeType, fileName, { model, language, vo
   return text;
 }
 
-async function summarizeTranscript({ title, transcript, notes, template, language }) {
+async function summarizeTranscript({ title, transcript, notes, template, language, segments = [], durationMs = 0 }) {
   const noteLines = Array.isArray(notes) ? notes.slice(0, 300).map(n => `[${formatMs(Number(n.timeMs || 0))}] ${String(n.kind || 'note').toUpperCase()}: ${String(n.text || '').slice(0, 700)}`).join('\n') : '';
+  const timeline = buildEvidenceTimeline(segments, transcript, durationMs);
   const templateGuidance = {
     standup: 'Emphasize yesterday/today/blockers and concrete owners.',
     'one-on-one': 'Emphasize coaching themes, commitments, concerns, and follow-ups.',
@@ -166,7 +190,7 @@ async function summarizeTranscript({ title, transcript, notes, template, languag
     general: 'Produce a concise, useful voice-note summary.'
   }[template] || 'Produce a concise, useful voice-note summary.';
 
-  const input = `Analyze this voice note. ${templateGuidance}\nLanguage hint: ${language || 'auto'}\nTitle: ${String(title).slice(0, 200)}\nTimestamped notes:\n${noteLines || '(none)'}\nTranscript:\n${transcript}\n\nReturn ONLY valid JSON with this exact shape:\n{\n"headline":"one line",\n"summary":"concise paragraph",\n"keyPoints":["..."],\n"decisions":["..."],\n"actionItems":[{"task":"...","owner":"","due":""}],\n"followUps":["..."],\n"tags":["..."],\n"topics":["..."],\n"sentiment":{"label":"positive|neutral|mixed|negative|unknown","explanation":"brief evidence-based explanation"},\n"questions":["..."],\n"flashcards":[{"front":"...","back":"..."}]\n}\nUse empty arrays when absent. Do not invent owners, dates, decisions, facts, emotions, or speaker identities.`;
+  const input = `Analyze this voice note. ${templateGuidance}\nLanguage hint: ${language || 'auto'}\nTitle: ${String(title).slice(0, 200)}\nTimestamped notes:\n${noteLines || '(none)'}\n\nEVIDENCE TIMELINE (cite only these rows; null times mean the timestamp is not reliable):\n${timeline}\n\nTranscript:\n${transcript}\n\nReturn ONLY valid JSON with this exact shape:\n{\n"headline":"one line",\n"summary":"concise paragraph",\n"keyPoints":["..."],\n"decisions":["..."],\n"actionItems":[{"task":"...","owner":"","due":""}],\n"followUps":["..."],\n"tags":["..."],\n"topics":["..."],\n"sentiment":{"label":"positive|neutral|mixed|negative|unknown","explanation":"brief evidence-based explanation"},\n"questions":["..."],\n"flashcards":[{"front":"...","back":"..."}],\n"evidence":[{"claimType":"decision|action|keyPoint|followUp|sentiment|other","claim":"claim supported by the recording","confidence":0.0,"sources":[{"segmentIndex":0,"startMs":0,"endMs":4000,"speaker":"Speaker 1","quote":"short exact supporting phrase"}]}]\n}\nFor evidence: confidence must be 0 to 1. Never fabricate timestamps, speakers, quotes, owners, dates, decisions, or facts. If the timeline row has startMs=null, return startMs/endMs as null. Quotes must be short and visibly supported by the supplied evidence timeline.`;
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -178,6 +202,15 @@ async function summarizeTranscript({ title, transcript, notes, template, languag
   return parseSummary(extractResponseText(payload));
 }
 
+function buildEvidenceTimeline(segments, transcript, durationMs) {
+  const cleanSegments = Array.isArray(segments) ? segments.slice(0, 240).filter(s => String(s?.text || '').trim()) : [];
+  if (cleanSegments.length) return cleanSegments.map((s, i) => `SEGMENT ${i} | startMs=${finiteOrNull(s.startMs)} | endMs=${finiteOrNull(s.endMs)} | speaker=${String(s.speaker || '') || 'unknown'} | ${String(s.text || '').replace(/\s+/g, ' ').slice(0, 700)}`).join('\n');
+  const parts = String(transcript || '').split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 160);
+  return parts.map((text, i) => `SEGMENT ${i} | startMs=null | endMs=null | speaker=unknown | ${text.replace(/\s+/g, ' ').slice(0, 700)}`).join('\n') || '(no timeline available)';
+}
+
+function finiteOrNull(value) { const n = Number(value); return Number.isFinite(n) && n >= 0 ? Math.round(n) : 'null'; }
+
 function extractResponseText(payload) {
   if (typeof payload?.output_text === 'string') return payload.output_text;
   const parts = [];
@@ -186,20 +219,58 @@ function extractResponseText(payload) {
 }
 
 function parseSummary(text) {
-  const fallback = { headline: 'Analysis generated', summary: text || '', keyPoints: [], decisions: [], actionItems: [], followUps: [], tags: [], topics: [], sentiment: { label: 'unknown', explanation: '' }, questions: [], flashcards: [] };
+  const fallback = { headline: 'Analysis generated', summary: text || '', keyPoints: [], decisions: [], actionItems: [], followUps: [], tags: [], topics: [], sentiment: { label: 'unknown', explanation: '' }, questions: [], flashcards: [], evidence: [] };
   if (!text) return fallback;
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try {
     const p = JSON.parse(cleaned);
     return {
       headline: String(p.headline || fallback.headline), summary: String(p.summary || ''), keyPoints: stringArray(p.keyPoints), decisions: stringArray(p.decisions),
-      actionItems: Array.isArray(p.actionItems) ? p.actionItems.slice(0, 50).map(a => ({ task: String(a?.task || ''), owner: String(a?.owner || ''), due: String(a?.due || '') })).filter(a => a.task) : [],
+      actionItems: Array.isArray(p.actionItems) ? p.actionItems.slice(0, 50).map(a => ({ task: String(a?.task || ''), owner: String(a?.owner || ''), due: String(a?.due || ''), done: Boolean(a?.done) })).filter(a => a.task) : [],
       followUps: stringArray(p.followUps), tags: stringArray(p.tags).slice(0, 16), topics: stringArray(p.topics).slice(0, 16),
       sentiment: { label: String(p.sentiment?.label || 'unknown'), explanation: String(p.sentiment?.explanation || '') },
       questions: stringArray(p.questions),
-      flashcards: Array.isArray(p.flashcards) ? p.flashcards.slice(0, 30).map(f => ({ front: String(f?.front || ''), back: String(f?.back || '') })).filter(f => f.front && f.back) : []
+      flashcards: Array.isArray(p.flashcards) ? p.flashcards.slice(0, 30).map(f => ({ front: String(f?.front || ''), back: String(f?.back || '') })).filter(f => f.front && f.back) : [],
+      evidence: normalizeEvidence(p.evidence)
     };
   } catch { return fallback; }
+}
+
+function normalizeEvidence(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 40).map(e => ({
+    claimType: String(e?.claimType || 'other').slice(0, 30),
+    claim: String(e?.claim || '').slice(0, 700),
+    confidence: Math.max(0, Math.min(1, Number(e?.confidence || 0))),
+    sources: Array.isArray(e?.sources) ? e.sources.slice(0, 6).map(src => ({
+      segmentIndex: Number.isInteger(Number(src?.segmentIndex)) ? Number(src.segmentIndex) : null,
+      startMs: src?.startMs == null ? null : (Number.isFinite(Number(src.startMs)) ? Math.max(0, Number(src.startMs)) : null),
+      endMs: src?.endMs == null ? null : (Number.isFinite(Number(src.endMs)) ? Math.max(0, Number(src.endMs)) : null),
+      speaker: String(src?.speaker || '').slice(0, 100),
+      quote: String(src?.quote || '').slice(0, 240)
+    })).filter(src => src.quote) : []
+  })).filter(e => e.claim && e.sources.length);
+}
+
+async function answerMemoryQuestion(question, sessions) {
+  const memory = sessions.map((s, i) => `SESSION ${i}\nid=${String(s.id || '').slice(0,120)}\ntitle=${String(s.title || '').slice(0,200)}\ndate=${String(s.createdAt || '').slice(0,40)}\nfolder=${String(s.folder || '').slice(0,100)}\ntags=${(Array.isArray(s.tags) ? s.tags : []).slice(0,20).join(', ')}\nsummary=${String(s.summary || '').slice(0,3000)}\ntopics=${(Array.isArray(s.topics) ? s.topics : []).slice(0,20).join(', ')}\ntranscript=${String(s.transcript || '').slice(0,7000)}`).join('\n\n');
+  const input = `Answer the user's question using ONLY the supplied OmniVoice memory. If the answer is not supported, say so. Prefer more recent evidence when statements conflict, but explicitly mention conflicts.\n\nQuestion: ${question.slice(0,1000)}\n\nMEMORY:\n${memory}\n\nReturn ONLY valid JSON:\n{"answer":"...","sources":[{"sessionId":"...","title":"...","quote":"short supporting quote","startMs":null,"confidence":0.0}],"relatedTopics":["..."],"openCommitments":[{"task":"...","owner":"","due":"","sessionId":"..."}]}\nNever invent a source, timestamp, owner, due date, or quote.`;
+  const response = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: SUMMARY_MODEL, input }) });
+  const payload = await safeJson(response); if (!response.ok) throw upstreamError('OmniMemory failed', response.status, payload);
+  const raw = extractResponseText(payload).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    const p = JSON.parse(raw);
+    return { answer: String(p.answer || ''), sources: Array.isArray(p.sources) ? p.sources.slice(0,12).map(x => ({ sessionId: String(x?.sessionId || ''), title: String(x?.title || ''), quote: String(x?.quote || '').slice(0,300), startMs: x?.startMs == null ? null : Number(x.startMs), confidence: Math.max(0,Math.min(1,Number(x?.confidence || 0))) })).filter(x => x.sessionId && x.quote) : [], relatedTopics: stringArray(p.relatedTopics).slice(0,20), openCommitments: Array.isArray(p.openCommitments) ? p.openCommitments.slice(0,20).map(a => ({ task:String(a?.task||''), owner:String(a?.owner||''), due:String(a?.due||''), sessionId:String(a?.sessionId||'') })).filter(a=>a.task) : [] };
+  } catch { return { answer: raw || 'No supported answer returned.', sources: [], relatedTopics: [], openCommitments: [] }; }
+}
+
+async function compareMeetings(current, previous) {
+  const compact = s => ({ id:String(s?.id||''), title:String(s?.title||'').slice(0,200), createdAt:String(s?.createdAt||''), summary:String(s?.summary||'').slice(0,6000), transcript:String(s?.transcript||'').slice(0,10000), decisions:Array.isArray(s?.decisions)?s.decisions.slice(0,30):[], actions:Array.isArray(s?.actions)?s.actions.slice(0,30):[], topics:Array.isArray(s?.topics)?s.topics.slice(0,30):[] });
+  const input = `Compare two recurring meeting records. Report only supported changes. Do not infer completion unless the current record supports it.\nPREVIOUS:\n${JSON.stringify(compact(previous))}\n\nCURRENT:\n${JSON.stringify(compact(current))}\n\nReturn ONLY valid JSON:\n{"headline":"...","changes":[{"type":"decision|deadline|owner|status|risk|topic|other","before":"...","after":"...","importance":"high|medium|low"}],"unresolved":["..."],"newlyCompleted":["..."],"newRisks":["..."]}`;
+  const response = await fetch('https://api.openai.com/v1/responses', { method:'POST', headers:{ Authorization:`Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type':'application/json' }, body:JSON.stringify({ model:SUMMARY_MODEL, input }) });
+  const payload=await safeJson(response); if(!response.ok) throw upstreamError('Meeting comparison failed',response.status,payload);
+  const raw=extractResponseText(payload).trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+  try { const p=JSON.parse(raw); return { headline:String(p.headline||'What changed'), changes:Array.isArray(p.changes)?p.changes.slice(0,40).map(c=>({type:String(c?.type||'other'),before:String(c?.before||''),after:String(c?.after||''),importance:String(c?.importance||'medium')})).filter(c=>c.before||c.after):[], unresolved:stringArray(p.unresolved), newlyCompleted:stringArray(p.newlyCompleted), newRisks:stringArray(p.newRisks) }; } catch { return {headline:'What changed',changes:[],unresolved:[],newlyCompleted:[],newRisks:[],raw}; }
 }
 
 async function readShare(id) {

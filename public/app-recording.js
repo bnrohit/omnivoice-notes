@@ -146,7 +146,7 @@ async function finalizeRecording() {
     id: uid(), title, createdAt: new Date(sessionStart).toISOString(), durationMs, mimeType: blob.type || currentMimeType, blob,
     notes: [...activeNotes], transcript: liveSegments.map(s => s.text).join(' ').trim(), segments: [...liveSegments], summary: null,
     folder: els.folder.value.trim() || 'Inbox', tags: [], favorite: false, template: els.template.value, language: els.language.value,
-    vocabulary: els.vocabulary.value.trim(), fingerprint, version: 2
+    vocabulary: els.vocabulary.value.trim(), fingerprint, version: 2.1
   };
   try { await putSession(session); localStorage.removeItem('omnivoice-draft'); setStatus(`Saved locally (${formatBytes(blob.size)}).`); }
   catch (error) { setStatus(`Could not save locally: ${error?.message || error}`); }
