@@ -1,4 +1,4 @@
-# v2 implementation matrix
+# v2.1 implementation matrix
 
 ## Implemented in this branch
 
