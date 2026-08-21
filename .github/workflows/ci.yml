@@ -22,10 +22,14 @@ jobs:
           node server.mjs > /tmp/omnivoice.log 2>&1 &
           echo $! > /tmp/omnivoice.pid
           sleep 2
-      - name: Health check
+      - name: Smoke checks
         run: |
-          curl --fail http://127.0.0.1:3000/api/health
+          curl --fail http://127.0.0.1:3000/api/health | grep -q '"ok":true'
           curl --fail http://127.0.0.1:3000/ | grep -q "OmniVoice Notes"
+          curl --fail http://127.0.0.1:3000/live-capture-worklet.js | grep -q "registerProcessor"
+          curl --fail -X POST http://127.0.0.1:3000/api/shares \
+            -H 'Content-Type: application/json' \
+            --data '{"ciphertext":"YWJjZA==","iv":"MTIzNDU2Nzg5MDEy"}' | grep -q '"id"'
       - name: Stop server
         if: always()
         run: kill "$(cat /tmp/omnivoice.pid)" || true

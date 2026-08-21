@@ -1,17 +1,12 @@
 {
   "name": "OmniVoice Notes",
   "short_name": "OmniVoice",
-  "description": "Cross-device local-first voice recording, timestamped notes, transcription and AI summaries.",
+  "description": "Local-first voice recording with live transcription, AI analysis, secure sharing and offline organization.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#111827",
-  "icons": [
-    {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "background_color": "#07101f",
+  "theme_color": "#0f172a",
+  "categories": ["productivity", "utilities"],
+  "icons": [{"src":"/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }

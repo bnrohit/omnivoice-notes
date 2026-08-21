@@ -1,30 +1,34 @@
-# Security Policy
+# Security and privacy
 
-## Design principles
+## Recording safety
 
-- Local-first storage by default.
-- Explicit user action is required to start recording and to submit audio for AI processing.
-- API credentials stay server-side.
-- The reference server does not persist uploaded audio to disk.
-- Security headers restrict framing, referrers, content types, camera/geolocation permissions and script/network origins.
+OmniVoice requires an explicit Start action and browser microphone permission. It displays a visible recording state and does not attempt hidden capture. Users must comply with applicable consent laws, workplace policy and participant expectations.
 
-## Secrets
+## Secret handling
 
-Never commit `.env`, API keys, tokens or recordings. `.env` and `recordings/` are ignored by Git.
+`OPENAI_API_KEY`, diarization tokens and outbound webhook tokens belong only in server environment variables. `.env` is ignored by Git. Never embed secrets in `public/` files or commit them.
 
-If a key is accidentally committed, revoke/rotate it immediately; deleting the file in a later commit is not sufficient because Git history retains it.
+## Local data
 
-## Production hardening
+Recordings, transcripts and analysis are stored in IndexedDB by default. Browser profile access therefore matters: use OS/device encryption and account lock controls on sensitive devices.
 
-Before public or organizational deployment, add:
+## Encrypted shares
 
-- authenticated accounts and authorization;
-- HTTPS-only ingress and HSTS at the reverse proxy;
-- managed rate limiting / abuse protection;
-- encrypted object storage instead of large JSON uploads;
-- configurable retention and deletion;
-- audit logging without logging transcript/audio content;
-- CSRF protections if cookie-based authentication is added;
-- malware/content validation for imported files;
-- limits on transcript size and processing duration;
-- privacy/consent and records-retention policy appropriate to the deployment.
+v2 share links encrypt note/transcript/summary metadata in the browser with AES-GCM. The server receives ciphertext and IV only. The key is in the URL fragment and should be treated as a bearer secret. Anyone possessing the full share URL can decrypt the content until the server-side payload expires.
+
+Audio is not included in encrypted share payloads in this beta.
+
+## Server controls in the reference implementation
+
+- request-size limits
+- per-IP in-memory rate limiting
+- security headers and restrictive CSP
+- no arbitrary browser-controlled webhook destination
+- random share IDs and expiry
+- no server-side audio persistence in transcription endpoints
+
+## Production gaps
+
+Before offering this as a multi-tenant SaaS, add authenticated authorization on every resource, durable distributed rate limiting, database/object-store encryption, audit logs, tenant isolation, abuse controls, secret rotation, vulnerability scanning, dependency policy, backups, disaster recovery and formal retention/delete workflows.
+
+Do not claim SOC 2, ISO 27001, HIPAA, FedRAMP, GDPR compliance, or other certification solely because technical controls exist; those require organizational, contractual and audit work beyond source code.
